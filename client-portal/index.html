@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caravan Wellness — Client Portal</title>
+<style>
+/* ── Reset ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: #e6e6e617; color: #000000; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── Header ── */
+header { background: #000000; color: white; padding: 10px 18px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+header h1 { font-size: 16px; font-weight: 700; white-space: nowrap; letter-spacing: -.3px; }
+header .meta { font-size: 11px; color: #888; white-space: nowrap; margin-left: auto; }
+
+/* ── Main Layout ── */
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 230px; background: white; border-right: 1px solid #e8e8e8; padding: 13px; overflow-y: auto; flex-shrink: 0; transition: width .2s, padding .2s; position: relative; }
+.sidebar.collapsed { width: 32px; padding: 0; overflow: hidden; }
+.sidebar.collapsed .sidebar-content { display: none; }
+.sidebar-toggle { position: absolute; top: 10px; right: 6px; z-index: 10; width: 22px; height: 22px; border-radius: 50%; background: white; border: 1px solid #e0e0e0; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center; color: #888; box-shadow: 0 1px 3px rgba(0,0,0,.1); flex-shrink: 0; }
+.sidebar-toggle:hover { background: #f5f5f5; color: #333; }
+.sidebar h3 { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: #aaa; margin-bottom: 5px; font-weight: 700; }
+.filter-group { margin-bottom: 13px; }
+select, input[type=text] { width: 100%; padding: 6px 9px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; outline: none; background: white; }
+select:focus, input[type=text]:focus { border-color: #000000; }
+.sidebar-count { font-size: 12px; color: #999; margin-top: 6px; }
+.sidebar-count strong { color: #000000; }
+
+/* ── Multi-select filter dropdowns ── */
+.msel { position: relative; }
+.msel-btn { width: 100%; padding: 6px 9px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; background: white; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #000000; }
+.msel-btn span.msel-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msel-btn::after { content: '▾'; font-size: 10px; color: #999; flex-shrink: 0; }
+.msel-btn.active { border-color: #000000; background: #f0f2ff; }
+.msel-btn.active span.msel-btn-label { color: #000000; font-weight: 600; }
+.msel-panel { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto; padding: 6px; }
+.msel-panel.open { display: block; }
+.msel-actions { display: flex; justify-content: flex-end; padding: 2px 4px 6px; border-bottom: 1px solid #f0f0f0; margin-bottom: 4px; }
+.msel-clear { background: none; border: none; color: #FFBD59; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+.msel-clear:hover { text-decoration: underline; }
+.msel-search { width: 100%; padding: 5px 8px; border: 1px solid #e0e0e0; border-radius: 5px; font-size: 12px; margin-bottom: 4px; outline: none; }
+.msel-search:focus { border-color: #000000; }
+.msel-option { display: flex; align-items: center; gap: 7px; padding: 5px 6px; border-radius: 5px; font-size: 13px; cursor: pointer; }
+.msel-option:hover { background: #f5f5f7; }
+.msel-option input[type=checkbox] { width: auto; margin: 0; flex-shrink: 0; }
+.msel-empty { padding: 8px 6px; font-size: 12px; color: #aaa; }
+
+/* ── Content ── */
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.toolbar { padding: 9px 13px; background: white; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; gap: 8px; }
+.btn { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 12px; background: white; color: #333; }
+.btn:hover { background: #f5f5f5; }
+.btn.primary { background: #000000; color: white; border-color: #000000; }
+.btn.primary:hover { background: #2a2a2a; }
+.table-wrap { flex: 1; overflow-y: auto; }
+.empty-state { text-align: center; padding: 60px 20px; color: #ccc; font-size: 15px; }
+
+/* ── Portal cards ── */
+.portal-card { position: relative; border: 1px solid #e8e8e8; border-radius: 10px; overflow: hidden; cursor: pointer; background: white; transition: box-shadow .15s, border-color .15s; }
+.portal-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+.portal-card.selected { border-color: #00847A; box-shadow: 0 0 0 2px rgba(0,132,122,.25); }
+.portal-card-checkbox { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 5px; background: white; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; z-index: 2; }
+.portal-card.selected .portal-card-checkbox { background: #00847A; border-color: #00847A; }
+.portal-card-thumb { width: 100%; aspect-ratio: 16/9; background: #E6E6E6; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #aaa; overflow: hidden; }
+.portal-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.portal-card-body { padding: 10px 12px 12px; }
+.portal-card-title { font-size: 13px; font-weight: 700; color: #000; line-height: 1.35; margin-bottom: 4px; }
+.portal-card-meta { font-size: 11px; color: #888; margin-bottom: 6px; }
+.portal-card-desc { font-size: 12px; color: #666; line-height: 1.4; margin-bottom: 8px; }
+.portal-card-price { font-size: 13px; font-weight: 700; color: #00847A; }
+.portal-read-more { color: #FF4874; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.portal-read-more:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛍 Caravan Wellness — Client Portal</h1>
+  <div class="meta">Video licensing</div>
+</header>
+
+<div class="main">
+  <div class="sidebar" id="mainSidebar">
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle filters">‹</button>
+    <div class="sidebar-content">
+      <div class="filter-group">
+        <h3>Filter by title</h3>
+        <input type="text" id="titleFilter" placeholder="Type to filter…">
+      </div>
+      <div class="filter-group">
+        <h3>Category</h3>
+        <div class="msel" id="catFilter"><button type="button" class="msel-btn"><span class="msel-btn-label">All Categories</span></button><div class="msel-panel"></div></div>
+      </div>
+      <div class="filter-group">
+        <h3>Author</h3>
+        <div class="msel" id="authorFilter"><button type="button" class="msel-btn"><span class="msel-btn-label">All</span></button><div class="msel-panel"></div></div>
+      </div>
+      <div class="filter-group">
+        <h3>Language</h3>
+        <div class="msel" id="langFilter"><button type="button" class="msel-btn"><span class="msel-btn-label">All</span></button><div class="msel-panel"></div></div>
+      </div>
+      <div class="filter-group">
+        <h3>Branding</h3>
+        <div class="msel" id="brandingFilter"><button type="button" class="msel-btn"><span class="msel-btn-label">All</span></button><div class="msel-panel"></div></div>
+      </div>
+      <div class="filter-group">
+        <h3>Duration</h3>
+        <div class="msel" id="durationFilter"><button type="button" class="msel-btn"><span class="msel-btn-label">All</span></button><div class="msel-panel"></div></div>
+      </div>
+      <div class="sidebar-count">Showing <strong id="shownCount">0</strong> items</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="toolbar" id="portalToolbar">
+      <span id="portalCount" style="font-size:12px;color:#555"></span>
+      <button class="btn primary" onclick="openCartModal()" style="margin-left:auto">🛒 Cart (<span id="portalCartCount">0</span>)</button>
+    </div>
+    <div class="table-wrap" id="portalGridWrap" style="overflow-y:auto;padding:16px;box-sizing:border-box">
+      <div id="portalGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px"></div>
+      <div class="empty-state" id="portalEmptyState" style="display:none">No videos match.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Cart / checkout modal — one modal, two internal views -->
+<div id="cartModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8000;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:14px;padding:30px;max-width:560px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto">
+    <div id="cartModalBody"></div>
+  </div>
+</div>
+
+<!-- Full description popup -->
+<div id="descriptionModal" onclick="if(event.target===this)closeDescriptionModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8000;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:14px;padding:28px;max-width:480px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.25);max-height:80vh;overflow-y:auto">
+    <div id="descriptionModalBody"></div>
+  </div>
+</div>
+
+<script>
+// DATA is large (multi-MB) and served as a separate static file instead of
+// being inlined here, so browsers can cache it across page loads. Mirrors
+// the loading pattern used by the internal dashboard this was extracted
+// from — update /data.json + redeploy to refresh the catalog snapshot.
+function _loadJsonSync(url) {
+  const x = new XMLHttpRequest();
+  x.open('GET', url, false);
+  x.send(null);
+  if (x.status !== 200) throw new Error('Failed to load ' + url + ' (' + x.status + ')');
+  return JSON.parse(x.responseText);
+}
+const DATA = _loadJsonSync('/data.json');
+
+// ── Edits/licenses overlay (live, fetched from the shared GitHub-backed API —
+// same source of truth as the internal dashboard, just a different frontend) ──
+let edits = {};
+let _licenses = {};
+let _licensesSha = null;
+
+async function loadEdits() {
+  try {
+    const r = await fetch('/api/save-edits');
+    if (r.ok) {
+      const d = await r.json();
+      edits = d._data || d;
+    }
+  } catch(e) {}
+}
+
+async function loadLicenses() {
+  try {
+    const r = await fetch('/api/save-licenses');
+    if (r.ok) {
+      const d = await r.json();
+      _licenses = d._data || {};
+      _licensesSha = d._sha ?? null;
+    }
+  } catch(e) {}
+}
+
+function gE(id, f, def) {
+  if (f === 'licenses') return _licenses[id] !== undefined ? _licenses[id] : def;
+  return (edits[id]&&edits[id][f]!==undefined) ? edits[id][f] : def;
+}
+function lv(item, f) {
+  const v = gE(item.id, f, undefined);
+  return v !== undefined ? v : (item[f] !== undefined ? item[f] : '');
+}
+
+// ── Data ──
+const ALL = [
+  ...DATA.articles, ...DATA.infographics, ...DATA.videos,
+  ...DATA.video_library, ...DATA.infographic_library, ...DATA.article_library,
+];
+const BY_ID = {};
+ALL.forEach(i => BY_ID[i.id] = i);
+
+async function loadExtraContent() {
+  try {
+    const r = await fetch('/api/save-content');
+    if (!r.ok) return;
+    const items = await r.json();
+    if (!Array.isArray(items) || !items.length) return;
+    for (const item of items) {
+      if (!BY_ID[item.id]) {
+        ALL.push(item);
+        BY_ID[item.id] = item;
+      }
+    }
+  } catch(e) { console.warn('Extra content load failed', e); }
+}
+
+let clients = [];
+async function loadClients() {
+  try {
+    const r = await fetch('/api/save-clients');
+    if (r.ok) {
+      const data = await r.json();
+      clients = data.clients || [];
+    }
+  } catch(e) {}
+}
+
+function extractDuration(title) {
+  const m = String(title||'').match(/^(\d+)\s*[Mm]in\b/);
+  if (m) return m[1] + ' min';
+  return '';
+}
+const DURATION_BUCKETS = ['Less than 2 Minutes','2-5 Minutes','5-10 Minutes','10+ Minutes'];
+function durationMinutes(item) {
+  const raw = lv(item,'duration') || extractDuration(lv(item,'title'));
+  if (!raw) return null;
+  const s = String(raw).trim().toLowerCase();
+  let m = s.match(/^(\d+(?:\.\d+)?)\s*min/);
+  if (m) return parseFloat(m[1]);
+  m = s.match(/^(\d+):(\d+)$/);
+  if (m) return parseInt(m[1],10) + parseInt(m[2],10)/60;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function durationBucket(item) {
+  const mins = durationMinutes(item);
+  if (mins === null) return '';
+  if (mins < 2) return 'Less than 2 Minutes';
+  if (mins < 5) return '2-5 Minutes';
+  if (mins < 10) return '5-10 Minutes';
+  return '10+ Minutes';
+}
+
+// A merged-away item stays in ALL/BY_ID so its ID still resolves, but every
+// user-facing listing should treat it as gone.
+function isHidden(item) { return !!lv(item,'_hidden'); }
+function visibleAll() { return ALL.filter(it => !isHidden(it)); }
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Multi-select filter dropdowns ──
+const MULTI_FILTERS = ['catFilter','authorFilter','langFilter','brandingFilter','durationFilter'];
+const filterSel = {};
+const filterLabelMap = {};
+MULTI_FILTERS.forEach(id => { filterSel[id] = new Set(); filterLabelMap[id] = {}; });
+
+function mselLabel(id, allLabel) {
+  const sel = filterSel[id];
+  if (!sel.size) return allLabel;
+  const map = filterLabelMap[id];
+  const vals = [...sel].map(v => map[v] || v);
+  return vals.length <= 2 ? vals.join(', ') : `${vals[0]} +${vals.length-1} more`;
+}
+
+function renderMsel(id, opts, allLabel) {
+  const norm = opts.map(o => typeof o === 'string' ? {value:o,label:o} : o);
+  const sel = filterSel[id];
+  filterLabelMap[id] = Object.fromEntries(norm.map(o=>[o.value,o.label]));
+  const validValues = new Set(norm.map(o=>o.value));
+  [...sel].forEach(v => { if (!validValues.has(v)) sel.delete(v); });
+
+  const root = document.getElementById(id);
+  const btn = root.querySelector('.msel-btn');
+  btn.querySelector('.msel-btn-label').textContent = mselLabel(id, allLabel);
+  btn.classList.toggle('active', sel.size > 0);
+
+  const panel = root.querySelector('.msel-panel');
+  const showSearch = norm.length > 8;
+  panel.innerHTML = `
+    <div class="msel-actions"><button type="button" class="msel-clear">Clear</button></div>
+    ${showSearch ? '<input type="text" class="msel-search" placeholder="Search…">' : ''}
+    <div class="msel-options">
+      ${norm.length ? norm.map(o=>`<label class="msel-option"><input type="checkbox" value="${esc(o.value)}"${sel.has(o.value)?' checked':''}><span>${esc(o.label)}</span></label>`).join('') : '<div class="msel-empty">No options</div>'}
+    </div>`;
+
+  panel.querySelector('.msel-clear').addEventListener('click', () => {
+    sel.clear();
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+    btn.querySelector('.msel-btn-label').textContent = mselLabel(id, allLabel);
+    btn.classList.remove('active');
+    applyPortalFilters();
+  });
+  const search = panel.querySelector('.msel-search');
+  if (search) search.addEventListener('input', () => {
+    const q = search.value.toLowerCase();
+    panel.querySelectorAll('.msel-option').forEach(lbl => {
+      lbl.style.display = lbl.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) sel.add(cb.value); else sel.delete(cb.value);
+      btn.querySelector('.msel-btn-label').textContent = mselLabel(id, allLabel);
+      btn.classList.toggle('active', sel.size > 0);
+      applyPortalFilters();
+    });
+  });
+}
+
+MULTI_FILTERS.forEach(id => {
+  document.getElementById(id).querySelector('.msel-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = document.getElementById(id).querySelector('.msel-panel');
+    const wasOpen = panel.classList.contains('open');
+    document.querySelectorAll('.msel-panel.open').forEach(p => p.classList.remove('open'));
+    if (!wasOpen) {
+      panel.classList.add('open');
+      const search = panel.querySelector('.msel-search');
+      if (search) search.focus();
+    }
+  });
+});
+document.addEventListener('click', e => {
+  document.querySelectorAll('.msel-panel.open').forEach(p => {
+    if (!p.closest('.msel').contains(e.target)) p.classList.remove('open');
+  });
+});
+
+function seedFilters() {
+  const base = visibleAll();
+  renderMsel('catFilter', [...new Set(base.map(i=>lv(i,'category')))].sort(), 'All Categories');
+  renderMsel('authorFilter', [...new Set(base.flatMap(i=>[lv(i,'author'), lv(i,'teacher')||lv(i,'peer_reviewer')]).filter(Boolean))].sort(), 'All');
+  renderMsel('langFilter', [...new Set(base.map(i=>lv(i,'language')).filter(Boolean))].sort(), 'All');
+  renderMsel('durationFilter', DURATION_BUCKETS, 'All');
+  renderMsel('brandingFilter', [{value:'White-Label',label:'White-Label'},{value:'Branded',label:'Branded'},{value:'none',label:'Unspecified'}], 'All');
+}
+
+['titleFilter'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input',  applyPortalFilters);
+  el.addEventListener('change', applyPortalFilters);
+});
+
+function toggleSidebar(collapse) {
+  const sb = document.getElementById('mainSidebar');
+  const btn = document.getElementById('sidebarToggle');
+  const shouldCollapse = collapse !== undefined ? collapse : !sb.classList.contains('collapsed');
+  sb.classList.toggle('collapsed', shouldCollapse);
+  btn.textContent = shouldCollapse ? '›' : '‹';
+}
+
+// ── Client Portal ──
+// There's no page-level "viewing as" concept anymore — browsing/filtering
+// doesn't know who the buyer is (so it can't hide already-licensed videos),
+// and the buyer is only picked at checkout time, inside the cart modal.
+const PORTAL_PRICE = 100; // flat $/video/year
+let portalVisible = [];
+let cart = new Set();
+let checkoutClient = ''; // set inside the checkout view only, not persisted per-browse
+try {
+  const savedCart = JSON.parse(localStorage.getItem('portal_cart') || '[]');
+  cart = new Set(Array.isArray(savedCart) ? savedCart : []);
+} catch(e) {}
+
+function savePortalState() {
+  try {
+    localStorage.setItem('portal_cart', JSON.stringify([...cart]));
+  } catch(e) {}
+}
+
+function applyPortalFilters() {
+  const title = document.getElementById('titleFilter').value.toLowerCase();
+  const cat      = filterSel.catFilter;
+  const author   = filterSel.authorFilter;
+  const lang     = filterSel.langFilter;
+  const branding = filterSel.brandingFilter;
+  const duration = filterSel.durationFilter;
+
+  portalVisible = visibleAll().filter(item => {
+    if (lv(item,'type') !== 'Video') return false;
+    if (title && !lv(item,'title').toLowerCase().includes(title)) return false;
+    if (cat.size    && !cat.has(lv(item,'category')))  return false;
+    if (author.size) {
+      const a = lv(item,'author'), t = lv(item,'teacher')||lv(item,'peer_reviewer');
+      if (!author.has(a) && !author.has(t)) return false;
+    }
+    if (lang.size   && !lang.has(lv(item,'language'))) return false;
+    if (branding.size) {
+      const b = lv(item,'branding') || '';
+      if (!branding.has(b || 'none')) return false;
+    }
+    if (duration.size && !duration.has(durationBucket(item))) return false;
+    return true;
+  });
+
+  renderPortalGrid();
+  document.getElementById('portalCount').textContent = portalVisible.length.toLocaleString() + ' videos';
+  document.getElementById('shownCount').textContent = portalVisible.length.toLocaleString();
+  updateCartBadge();
+}
+
+function renderPortalGrid() {
+  const grid  = document.getElementById('portalGrid');
+  const empty = document.getElementById('portalEmptyState');
+  if (!portalVisible.length) { grid.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  grid.innerHTML = portalVisible.map(item => {
+    const inCart = cart.has(item.id);
+    const desc = lv(item,'description') || '';
+    const truncated = desc.length > 100;
+    const descShort = truncated ? esc(desc.slice(0,100)) + '…' : esc(desc);
+    const dur = lv(item,'duration') || extractDuration(lv(item,'title')) || '';
+    const thumb = lv(item,'thumbnail');
+    return `<div class="portal-card${inCart?' selected':''}" onclick="togglePortalCartItem('${item.id}')">
+      <div class="portal-card-checkbox">${inCart?'✓':''}</div>
+      <div class="portal-card-thumb">${thumb ? `<img src="${esc(thumb)}" loading="lazy" alt="">` : '🎬'}</div>
+      <div class="portal-card-body">
+        <div class="portal-card-title">${esc(lv(item,'title'))}</div>
+        <div class="portal-card-meta">${esc(lv(item,'category')||'—')} &nbsp;·&nbsp; ${esc(lv(item,'language')||'—')}${dur?` &nbsp;·&nbsp; ${esc(String(dur))} min`:''}</div>
+        ${descShort ? `<div class="portal-card-desc">${descShort}${truncated?` <span class="portal-read-more" onclick="event.stopPropagation();showFullDescription('${item.id}')">Read more</span>`:''}</div>` : ''}
+        <div class="portal-card-price">$${PORTAL_PRICE}/yr</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePortalCartItem(id) {
+  if (cart.has(id)) cart.delete(id); else cart.add(id);
+  savePortalState();
+  updateCartBadge();
+  renderPortalGrid();
+}
+
+function showFullDescription(id) {
+  const item = BY_ID[id];
+  if (!item) return;
+  document.getElementById('descriptionModalBody').innerHTML = `
+    <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:#000000">${esc(lv(item,'title'))}</h3>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">${esc(lv(item,'category')||'—')} &nbsp;·&nbsp; ${esc(lv(item,'language')||'—')}</div>
+    <p style="font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap;margin:0 0 20px">${esc(lv(item,'description')||'')}</p>
+    <button onclick="closeDescriptionModal()" style="width:100%;padding:9px 18px;border:1px solid #e0e0e0;border-radius:7px;background:white;cursor:pointer;font-size:13px;color:#666">Close</button>`;
+  document.getElementById('descriptionModal').style.display = 'flex';
+}
+function closeDescriptionModal() {
+  document.getElementById('descriptionModal').style.display = 'none';
+}
+
+function updateCartBadge() {
+  const el = document.getElementById('portalCartCount');
+  if (el) el.textContent = cart.size;
+}
+
+function openCartModal() {
+  renderCartView();
+  document.getElementById('cartModal').style.display = 'flex';
+}
+function closeCartModal() {
+  document.getElementById('cartModal').style.display = 'none';
+}
+
+function renderCartView() {
+  const items = [...cart].map(id => BY_ID[id]).filter(Boolean);
+  const total = items.length * PORTAL_PRICE;
+  document.getElementById('cartModalBody').innerHTML = `
+    <h3 style="margin:0 0 14px;font-size:16px;font-weight:700;color:#000000">Your Cart</h3>
+    ${items.length ? items.map(item => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #eee">
+        <div style="width:36px;height:36px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🎬</div>
+        <div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lv(item,'title'))}</div>
+        <div style="font-size:13px;color:#666;flex-shrink:0">$${PORTAL_PRICE}</div>
+        <button onclick="removeFromCart('${item.id}')" style="border:none;background:none;color:#aaa;cursor:pointer;font-size:16px;padding:0 2px">×</button>
+      </div>`).join('') : '<div style="color:#999;font-size:13px;padding:14px 0">Your cart is empty.</div>'}
+    ${items.length ? `<div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;padding:14px 0 0;border-top:1px solid #eee;margin-top:6px">
+      <span>Total (1-year license)</span><span>$${total}</span>
+    </div>` : ''}
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+      <button onclick="closeCartModal()" style="padding:9px 18px;border:1px solid #e0e0e0;border-radius:7px;background:white;cursor:pointer;font-size:13px;color:#666">Continue Shopping</button>
+      ${items.length ? `<button onclick="proceedToCheckout()" style="padding:9px 20px;background:#000000;color:white;border:none;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer">Checkout</button>` : ''}
+    </div>`;
+}
+
+function removeFromCart(id) {
+  cart.delete(id);
+  savePortalState();
+  updateCartBadge();
+  renderCartView();
+  renderPortalGrid();
+}
+
+function proceedToCheckout() {
+  renderCheckoutView();
+}
+
+function renderCheckoutView() {
+  const items = [...cart].map(id => BY_ID[id]).filter(Boolean);
+  const total = items.length * PORTAL_PRICE;
+  const clientKnown = !!checkoutClient;
+  document.getElementById('cartModalBody').innerHTML = `
+    <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;color:#000000">Checkout</h3>
+    <p style="font-size:13px;color:#666;margin:0 0 14px">${items.length} video${items.length===1?'':'s'} · 1-year license each</p>
+    <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#999;margin-bottom:5px">Licensing to</label>
+    <select id="checkoutClientSelect" onchange="onCheckoutClientChange(this.value)" style="width:100%;padding:8px 10px;border:1px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;margin-bottom:14px">
+      <option value="">Select a client…</option>
+      ${[...clients].sort().map(c => `<option value="${esc(c)}"${c===checkoutClient?' selected':''}>${esc(c)}</option>`).join('')}
+    </select>
+    <div style="max-height:220px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:4px 12px;margin-bottom:14px">
+      ${items.map(item => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #f2f2f2">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:10px">${esc(lv(item,'title'))}</span>
+        <span style="flex-shrink:0;color:#666">$${PORTAL_PRICE}</span>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:18px">
+      <span>Total</span><span>$${total}</span>
+    </div>
+    <div id="checkoutStatus" style="font-size:12px;color:#666;min-height:16px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="renderCartView()" style="padding:9px 18px;border:1px solid #e0e0e0;border-radius:7px;background:white;cursor:pointer;font-size:13px;color:#666">Back to Cart</button>
+      <button id="completeCheckoutBtn" onclick="completeCheckout()" ${clientKnown?'':'disabled'} style="padding:9px 20px;background:${clientKnown?'#000000':'#ccc'};color:white;border:none;border-radius:7px;font-weight:700;font-size:13px;cursor:${clientKnown?'pointer':'not-allowed'}">Complete Purchase</button>
+    </div>`;
+}
+
+function onCheckoutClientChange(value) {
+  checkoutClient = value;
+  renderCheckoutView();
+}
+
+async function completeCheckout() {
+  if (!checkoutClient || !cart.size) return;
+  const btn = document.getElementById('completeCheckoutBtn');
+  const status = document.getElementById('checkoutStatus');
+  btn.disabled = true;
+  status.textContent = 'Processing…';
+  const ids = [...cart];
+  const add = {};
+  ids.forEach(id => { add[id] = [checkoutClient]; });
+  try {
+    const r = await fetch('/api/save-licenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ add, message: `Client Portal purchase: ${ids.length} videos licensed to ${checkoutClient}` }),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || 'Save failed');
+    ids.forEach(id => {
+      const cur = _licenses[id] || [];
+      if (!cur.includes(checkoutClient)) _licenses[id] = [...cur, checkoutClient];
+    });
+    const licensedTo = checkoutClient;
+    cart.clear();
+    checkoutClient = '';
+    savePortalState();
+    updateCartBadge();
+    document.getElementById('cartModalBody').innerHTML = `
+      <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;color:#00847A">✓ Purchase Complete</h3>
+      <p style="font-size:13px;color:#666;margin:0 0 18px">${ids.length} video${ids.length===1?'':'s'} licensed to ${esc(licensedTo)} for 1 year.</p>
+      <button onclick="closeCartModal()" style="width:100%;padding:9px 18px;background:#000000;color:white;border:none;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer">Done</button>`;
+    applyPortalFilters();
+  } catch(e) {
+    status.textContent = '⚠ ' + e.message;
+    btn.disabled = false;
+  }
+}
+
+// ── Init ──
+async function init() {
+  await Promise.all([loadEdits(), loadLicenses(), loadExtraContent(), loadClients()]);
+  seedFilters();
+  applyPortalFilters();
+}
+init();
+</script>
+</body>
+</html>
