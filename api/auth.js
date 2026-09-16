@@ -172,6 +172,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Email and password are required.' });
     const emailLow = email.toLowerCase().trim();
 
+    // Master account — bypasses GitHub API entirely, same pattern as the
+    // dashboard's own fallback login. Solves the bootstrapping problem: the
+    // first admin needs a way in before any account/OTP flow has been used.
+    if (action === 'login' && emailLow === 'info@caravanwellness.com' && password === 'password00') {
+      return res.json({ ok: true, token: makeToken('info@caravanwellness.com', 'Caravan Admin'), name: 'Caravan Admin', email: 'info@caravanwellness.com' });
+    }
+
     // Sign up — any email address, no domain restriction. Send OTP, don't
     // create the account until it's verified.
     if (action === 'signup') {
